@@ -5,7 +5,6 @@ Pike is a macro collection to pipe your functions calls, like in F# or Elixir.
 ## Examples
 
 The pipe operator |> allows you to establish "pipelines" of functions in a flexible manner.
-Given this code:
 
 ```rust
 fn times(a: u32, b: u32) -> u32{

@@ -32,7 +32,6 @@ macro_rules! __internal_pipe_fun {
 }
 
 /// The pipe operator |> allows you to establish "pipelines" of functions in a flexible manner.
-/// Given this code:
 /// ```rust
 /// fn times(a: u32, b: u32) -> u32{
 ///     a * b
