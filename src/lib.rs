@@ -106,12 +106,12 @@ macro_rules! pipe {
 /// ```
 #[macro_export]
 macro_rules! pipe_res {
-    ($(|>)? $head:tt $(|> $funs:tt)+) => {
+    ($(|>)? $head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
         {
             let ret = Ok($head);
             $(
                 let ret = match ret {
-                    Ok(x) => $crate::__internal_pipe_fun!($funs, x),
+                    Ok(x) => $crate::__internal_pipe_fun!($funs_head $(:: $funs_tail)*, x),
                     _ => ret
                 };
             )*
@@ -122,12 +122,12 @@ macro_rules! pipe_res {
 
 #[macro_export]
 macro_rules! pipe_opt {
-    ($(|>)? $head:tt $(|> $funs:tt)+) => {
+    ($(|>)? $head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
         {
             let ret = None;
             $(
                 let ret = match ret {
-                    None => $crate::__internal_pipe_fun!($funs, $head),
+                    None => $crate::__internal_pipe_fun!($funs_head $(:: $funs_tail)*, $head),
                     _ => ret
                 };
             )*
