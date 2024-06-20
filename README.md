@@ -44,6 +44,15 @@ let length = pipe!(
     |> times(2)
     |> [to_string]
 );
+
+// you are allowed to have trailing or preceding `|>` operators.
+let length = pipe!(
+    "abcd"
+    |> [len]
+    |> (as u32)
+    |> times(2)
+    |> [to_string]
+);
 ```
 
 ## Macros
