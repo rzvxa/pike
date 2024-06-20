@@ -98,11 +98,11 @@ macro_rules! __internal_pipe_fun {
 /// ```
 #[macro_export]
 macro_rules! pipe {
-    ($head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
+    ($head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*  $(! $($bang:tt)?)?)+) => {
         {
         let ret = $head;
         $(
-            let ret = $crate::__internal_pipe_fun!($funs_head $(:: $funs_tail)*, ret);
+            let ret = $crate::__internal_pipe_fun!($($($bang)? !, )? $funs_head $(:: $funs_tail)*, ret);
         )+
             ret
         }
@@ -325,5 +325,41 @@ mod test_pipe {
 
         assert_eq!(ret, times(times2("abcd".len() as u32), 100, 10).to_string());
         assert_eq!(ret, "8000");
+    }
+
+    #[test]
+    fn test_macro() {
+        let mut ret;
+        macro_rules! test_macro_a {
+            ($it:expr) => {
+                ret = Some($it)
+            };
+        }
+
+        macro_rules! test_macro_b {
+            ($it:expr, $arg:expr) => {
+                ret = Some($it * $arg)
+            };
+        }
+        let multiply = |i: u32| i * 2;
+        pipe!(
+            4
+            |> times2
+            |> (|i: u32| i * 2)
+            |> multiply
+            |> test_macro_a!
+        );
+
+        assert_eq!(ret, Some(32));
+
+        pipe!(
+            4
+            |> times2
+            |> (|i: u32| i * 2)
+            |> multiply
+            |> (test_macro_b!(10))
+        );
+
+        assert_eq!(ret, Some(320));
     }
 }
