@@ -5,8 +5,9 @@
 // #![deny(missing_docs)]
 #![deny(warnings)]
 
+/// Internal
 #[macro_export]
-macro_rules! pipe_fun {
+macro_rules! __internal_pipe_fun {
     (&, $ret:expr) => {
         &$ret
     };
@@ -16,38 +17,101 @@ macro_rules! pipe_fun {
     ({$fun:expr}, $ret:expr) => {
         $fun($ret)
     };
-    ([$fun:ident], $ret:expr) => {
-        $ret.$fun()
+    (($funs_head:tt $(:: $funs_tail:tt)* ($($arg:expr),*)), $ret:expr) => {
+        $funs_head $(:: $funs_tail)* ($ret $(,$arg)*)
     };
-    (($fun:ident($($arg:expr),*)), $ret:expr) => {
-        $fun($ret $(,$arg)*)
+    (($fun:ident!($($arg:expr),*)), $ret:expr) => {
+        $fun!($ret $(,$arg)*)
     };
-    ($fun:ident, $ret:expr) => {
+    ($fun:path, $ret:expr) => {
         $fun($ret)
+    };
+    (!, $fun:ident, $ret:expr) => {
+        $fun!($ret)
     }
 }
 
+/// The pipe operator |> allows you to establish "pipelines" of functions in a flexible manner.
+/// Given this code:
+/// ```rust
+/// fn times(a: u32, b: u32) -> u32{
+///     a * b
+/// }
+///
+/// fn times2(n: u32) -> u32 {
+///     times(n, 2)
+/// }
+///
+/// // Passes the preceding expression as the only argument of proceding function.
+/// let num = pike::pipe!(
+///   2
+///   |> times2
+///   |> times2
+/// );
+/// assert_eq!(num, 2 * 2 * 2);
+///
+/// // Passes the preceding expression as the first argument of proceding function.
+/// // by wrapping the function in parentheses we can pass the remanining arguments by partially
+/// // calling the `times` as `times(?, 2)` and passing 2 as its first argument via the pipeline.
+/// let num = pike::pipe!(
+///   1
+///   |> (times(2))
+///   |> (times(3))
+/// );
+/// assert_eq!(num, 1 * 2 * 3);
+///
+/// // call a method using pipelines
+/// let len = pike::pipe!(
+///   "abcd"
+///   |> str::len
+/// );
+/// assert_eq!(len, "abcd".len());
+///
+/// // takes a string length, doubles it and converts it back into a string
+/// let len = pike::pipe!(
+///     "abcd"
+///     |> str::len
+///     |> (as u32)
+///     |> (times(2))
+///     |> &
+///     |> u32::to_string
+/// );
+///
+/// // you are allowed to have trailing or preceding `|>` operators.
+/// let length = pike::pipe!(
+///     "abcd"
+///     |> str::len
+///     |> (as u32)
+///     |> (times(2))
+///     |> &
+///     |> u32::to_string
+/// );
+/// ```
 #[macro_export]
 macro_rules! pipe {
-    ($(|>)? $head:tt $(|> $funs:tt)+) => (
+    ($(|>)? $head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
         {
-            let ret = $head;
-            $(
-                let ret = pipe_fun!($funs, ret);
-            )*
+        let ret = $head;
+        $(
+            let ret = $crate::__internal_pipe_fun!($funs_head $(:: $funs_tail)*, ret);
+        )+
             ret
         }
-    )
+    }
 }
 
+/// Works similar to `pipe` but `pipe_res` exits the pipeline early if a function returns an Err()
+/// ```rust,ignore
+/// let result = pike::pipe_res!("http://rust-lang.org" |> download |> parse |> get_links)
+/// ```
 #[macro_export]
 macro_rules! pipe_res {
-    ( $expr:expr => $($funs:tt)=>+ ) => {
+    ($(|>)? $head:tt $(|> $funs:tt)+) => {
         {
-            let ret = Ok($expr);
+            let ret = Ok($head);
             $(
                 let ret = match ret {
-                    Ok(x) => pipe_fun!($funs, x),
+                    Ok(x) => $crate::__internal_pipe_fun!($funs, x),
                     _ => ret
                 };
             )*
@@ -58,12 +122,12 @@ macro_rules! pipe_res {
 
 #[macro_export]
 macro_rules! pipe_opt {
-    ( $expr:expr => $($funs:tt)=>+ ) => {
+    ($(|>)? $head:tt $(|> $funs:tt)+) => {
         {
             let ret = None;
             $(
                 let ret = match ret {
-                    None => pipe_fun!($funs, $expr),
+                    None => $crate::__internal_pipe_fun!($funs, $head),
                     _ => ret
                 };
             )*
@@ -86,7 +150,7 @@ mod test_pipe_opt {
     fn accepts_options() {
         let ret = pipe_opt!(
             4
-            => times2
+            |> times2
         );
 
         assert_eq!(ret, Some(8));
@@ -96,7 +160,7 @@ mod test_pipe_opt {
     fn accepts_unwrap() {
         let ret = pipe_opt!(
             4
-            => times2
+            |> times2
         )
         .unwrap();
 
@@ -107,9 +171,9 @@ mod test_pipe_opt {
     fn exits_early() {
         let ret = pipe_opt!(
             4
-            => times2
-            => times2
-            => times2
+            |> times2
+            |> times2
+            |> times2
         );
 
         assert_eq!(ret, Some(8));
@@ -119,11 +183,11 @@ mod test_pipe_opt {
     fn goes_until_some() {
         let ret = pipe_opt!(
             4
-            => nope
-            => nope
-            => {|_i: u32| None}
-            => times2
-            => nope
+            |> nope
+            |> nope
+            |> {|_i: u32| None}
+            |> times2
+            |> nope
         );
 
         assert_eq!(ret, Some(8));
@@ -133,10 +197,10 @@ mod test_pipe_opt {
     fn ends_with_none() {
         let ret = pipe_opt!(
             4
-            => nope
-            => nope
-            => {|_i: u32| None}
-            => nope
+            |> nope
+            |> nope
+            |> {|_i: u32| None}
+            |> nope
         );
 
         assert_eq!(ret, None);
@@ -160,7 +224,7 @@ mod test_pipe_res {
     fn accepts_results() {
         let ret = pipe_res!(
             4
-            => times2
+            |> times2
         );
 
         assert_eq!(ret, Ok(8));
@@ -170,7 +234,7 @@ mod test_pipe_res {
     fn accepts_unwrap() {
         let ret = pipe_res!(
             4
-            => times2
+            |> times2
         )
         .unwrap();
 
@@ -181,9 +245,9 @@ mod test_pipe_res {
     fn chains_result_values() {
         let ret = pipe_res!(
             4
-            => times2
-            => times2
-            => times2
+            |> times2
+            |> times2
+            |> times2
         );
 
         assert_eq!(ret, Ok(32));
@@ -193,10 +257,10 @@ mod test_pipe_res {
     fn exits_early() {
         let ret = pipe_res!(
             4
-            => times2
-            => fail_if_over_4
-            => times2
-            => times2
+            |> times2
+            |> fail_if_over_4
+            |> times2
+            |> times2
         );
 
         assert_eq!(ret, Err("This number is larger than four".to_string()));
@@ -231,11 +295,12 @@ mod test_pipe {
     fn test_string() {
         let ret = pipe!(
             "abcd"
-            |> [len]
+            |> str::len
             |> (as u32)
             |> times2
             |> (times(100, 10))
-            |> [to_string]
+            |> &
+            |> u32::to_string
         );
 
         //let ret = "abcd";

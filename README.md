@@ -2,21 +2,6 @@
 
 Pike is a macro collection to pipe your functions calls, like in F# or Elixir.
 
-## Usage
-
-Put this in your Cargo.toml
-```toml
-[dependencies]
-
-pike = "0.1.0"
-```
-
-Then you can import the macros with extern crate and macro_use
-```rust
-#[macro_use]
-extern crate pike;
-```
-
 ## Examples
 
 ```rust
@@ -45,9 +30,9 @@ let length = pipe!(
     |> [to_string]
 );
 
-// you are allowed to have trailing or preceding `|>` operators.
+// you are allowed to have preceding `|>` operators.
 let length = pipe!(
-    "abcd"
+    |> "abcd"
     |> [len]
     |> (as u32)
     |> times(2)
