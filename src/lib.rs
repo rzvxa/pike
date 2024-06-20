@@ -14,14 +14,14 @@ macro_rules! __internal_pipe_fun {
     ((as $typ:ty), $ret:expr) => {
         $ret as $typ
     };
-    ({$fun:expr}, $ret:expr) => {
-        $fun($ret)
-    };
     (($funs_head:tt $(:: $funs_tail:tt)* ($($arg:expr),*)), $ret:expr) => {
         $funs_head $(:: $funs_tail)* ($ret $(,$arg)*)
     };
     (($fun:ident!($($arg:expr),*)), $ret:expr) => {
         $fun!($ret $(,$arg)*)
+    };
+    (($fun:expr), $ret:expr) => {
+        $fun($ret)
     };
     ($fun:path, $ret:expr) => {
         $fun($ret)
@@ -67,6 +67,24 @@ macro_rules! __internal_pipe_fun {
 /// );
 /// assert_eq!(len, "abcd".len());
 ///
+/// // Closures can also be pipelined similar to partial functions.
+/// let c = pike::pipe!(
+///   ['a', 'b', 'c', 'd']
+///   |> (|it: [char; 4]| it[2])
+/// );
+/// assert_eq!(c, 'c');
+///
+/// // Piping through `&` symbol would get a reference to the preceding expression.
+/// let it = "it";
+/// let is_it = |r: &&str| it == *r;
+///
+/// let is_it = pike::pipe!(
+///   it
+///   |> &
+///   |> is_it
+/// );
+/// assert_eq!(is_it, true);
+///
 /// // takes a string length, doubles it and converts it back into a string
 /// let len = pike::pipe!(
 ///     "abcd"
@@ -77,19 +95,11 @@ macro_rules! __internal_pipe_fun {
 ///     |> u32::to_string
 /// );
 ///
-/// // you are allowed to have trailing or preceding `|>` operators.
-/// let length = pike::pipe!(
-///     "abcd"
-///     |> str::len
-///     |> (as u32)
-///     |> (times(2))
-///     |> &
-///     |> u32::to_string
-/// );
+/// assert_eq!(len, "8");
 /// ```
 #[macro_export]
 macro_rules! pipe {
-    ($(|>)? $head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
+    ($head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
         {
         let ret = $head;
         $(
@@ -106,7 +116,7 @@ macro_rules! pipe {
 /// ```
 #[macro_export]
 macro_rules! pipe_res {
-    ($(|>)? $head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
+    ($head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
         {
             let ret = Ok($head);
             $(
@@ -120,9 +130,13 @@ macro_rules! pipe_res {
     };
 }
 
+/// Works similar to `pipe_res` but `pipe_opt` exits the pipeline early if a function returns an None()
+/// ```rust,ignore
+/// let result = pike::pipe_res!("http://rust-lang.org" |> download |> parse |> get_links)
+/// ```
 #[macro_export]
 macro_rules! pipe_opt {
-    ($(|>)? $head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
+    ($head:tt $(|> $funs_head:tt $(:: $funs_tail:tt)*)+) => {
         {
             let ret = None;
             $(
@@ -185,7 +199,7 @@ mod test_pipe_opt {
             4
             |> nope
             |> nope
-            |> {|_i: u32| None}
+            |> (|_i: u32| None)
             |> times2
             |> nope
         );
@@ -199,7 +213,7 @@ mod test_pipe_opt {
             4
             |> nope
             |> nope
-            |> {|_i: u32| None}
+            |> (|_i| None)
             |> nope
         );
 
@@ -283,7 +297,7 @@ mod test_pipe {
         let ret = pipe!(
             4
             |> times2
-            |> {|i: u32| i * 2}
+            |> (|i: u32| i * 2)
             |> multiply
             |> (times(100, 10))
         );

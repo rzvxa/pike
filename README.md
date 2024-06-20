@@ -4,41 +4,72 @@ Pike is a macro collection to pipe your functions calls, like in F# or Elixir.
 
 ## Examples
 
-```rust
-// pipe_res exits the pipeline early if a function returns an Err()
-let result = pipe_res!("http://rust-lang.org" |> download |> parse |> get_links)
-```
+The pipe operator |> allows you to establish "pipelines" of functions in a flexible manner.
+Given this code:
 
 ```rust
 fn times(a: u32, b: u32) -> u32{
-    return a * b;
+    a * b
 }
 
-let num = pipe!(
-  4
-  |> (times(10))
-  |> {|i: u32| i * 2}
-  |> (times(4))
+fn times2(n: u32) -> u32 {
+    times(n, 2)
+}
+
+// Passes the preceding expression as the only argument of proceding function.
+let num = pike::pipe!(
+  2
+  |> times2
+  |> times2
 );
+assert_eq!(num, 2 * 2 * 2);
+
+// Passes the preceding expression as the first argument of proceding function.
+// by wrapping the function in parentheses we can pass the remanining arguments by partially
+// calling the `times` as `times(?, 2)` and passing 2 as its first argument via the pipeline.
+let num = pike::pipe!(
+  1
+  |> (times(2))
+  |> (times(3))
+);
+assert_eq!(num, 1 * 2 * 3);
+
+// call a method using pipelines
+let len = pike::pipe!(
+  "abcd"
+  |> str::len
+);
+assert_eq!(len, "abcd".len());
+
+// Closures can also be pipelined similar to partial functions.
+let c = pike::pipe!(
+  ['a', 'b', 'c', 'd']
+  |> (|it: [char; 4]| it[2])
+);
+assert_eq!(c, 'c');
+
+// Piping through `&` symbol would get a reference to the preceding expression.
+let it = "it";
+let is_it = |r: &&str| it == *r;
+
+let is_it = pike::pipe!(
+  it
+  |> &
+  |> is_it
+);
+assert_eq!(is_it, true);
 
 // takes a string length, doubles it and converts it back into a string
-let length = pipe!(
+let len = pike::pipe!(
     "abcd"
-    |> [len]
+    |> str::len
     |> (as u32)
-    |> times(2)
-    |> [to_string]
-);
-
-// you are allowed to have preceding `|>` operators.
-let length = pipe!(
-    |> "abcd"
-    |> [len]
-    |> (as u32)
-    |> times(2)
-    |> [to_string]
+    |> (times(2))
+    |> &
+    |> u32::to_string
 );
 ```
+
 
 ## Macros
 
@@ -57,36 +88,36 @@ Any `pipe` starts with an expression as initial value and requires you
 to specify a function to transform that initial value.
 ```rust
 let result = pipe!(2 |> times2);
+// same as times2(2)
 ```
 
 You can get more fancy with functions, too, if you add parentheses like
 in a normal function call, the passed parameters will be applied to that
 function after the transformed value.
 
-> You have to put it in parentheses
-because the Rust macro system can be very restrictive.
-If you figure out a way to do it without please make a PR.
-
 ```rust
 let result = pipe!(2 |> (times(2)));
+// same as times(2, 2)
 ```
 
-You can pass closures \o/! A closure must be wrapped in curly brackets (`{}`)
+You can pass closures \o/! A closure must be wrapped in parentheses as well.
 ```rust
 let result = pipe!(
   2
   |> (times(2))
-  |> {|i: u32| i * 2}
+  |> (|i: u32| i * 2)
 );
+// same as (|i: u32| i * 2)(time(2, 2))
 ```
 
-If you want a function to be called as a method on the transform value,
-put it in square brackets (`[]`).
+If you want a function to be called as a method on the transform value, just pass it as a path.
+
 ```rust
 let result = pipe!(
     "abcd"
-    |> [len]
+    |> str::len
 );
+// same as "abcd".len()
 ```
 
 ## License
