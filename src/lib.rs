@@ -5,32 +5,6 @@
 #![deny(missing_docs)]
 #![deny(warnings)]
 
-/// Internal
-#[macro_export]
-macro_rules! __internal_pike_fun {
-    (&, $ret:expr) => {
-        &$ret
-    };
-    ((as $typ:ty), $ret:expr) => {
-        $ret as $typ
-    };
-    (($funs_head:tt $(:: $funs_tail:tt)* ($($arg:expr),*)), $ret:expr) => {
-        $funs_head $(:: $funs_tail)* ($ret $(,$arg)*)
-    };
-    (($fun:ident!($($arg:expr),*)), $ret:expr) => {
-        $fun!($ret $(,$arg)*)
-    };
-    (($fun:expr), $ret:expr) => {
-        $fun($ret)
-    };
-    ($fun:path, $ret:expr) => {
-        $fun($ret)
-    };
-    (!, $fun:ident, $ret:expr) => {
-        $fun!($ret)
-    }
-}
-
 /// The pipe operator |> allows you to establish "pipelines" of functions in a flexible manner.
 /// ```rust
 /// use pike::pike;
@@ -98,7 +72,7 @@ macro_rules! pike {
         $(
             let ret = $crate::__internal_pike_fun!($($($bang)? !, )? $funs_head $(:: $funs_tail)*, ret);
         )+
-            ret
+        ret
         }
     }
 }
@@ -142,6 +116,32 @@ macro_rules! pike_opt {
             ret
         }
     };
+}
+
+/// Internal
+#[macro_export]
+macro_rules! __internal_pike_fun {
+    (&, $ret:expr) => {
+        &$ret
+    };
+    ((as $typ:ty), $ret:expr) => {
+        $ret as $typ
+    };
+    (($funs_head:tt $(:: $funs_tail:tt)* ($($arg:expr),*)), $ret:expr) => {
+        $funs_head $(:: $funs_tail)* ($ret $(,$arg)*)
+    };
+    (($fun:ident!($($arg:expr),*)), $ret:expr) => {
+        $fun!($ret $(,$arg)*)
+    };
+    (($fun:expr), $ret:expr) => {
+        $fun($ret)
+    };
+    ($fun:path, $ret:expr) => {
+        $fun($ret)
+    };
+    (!, $fun:ident, $ret:expr) => {
+        $fun!($ret)
+    }
 }
 
 #[cfg(test)]
