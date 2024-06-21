@@ -64,6 +64,15 @@ let len = pike! {
   |> &
   |> u32::to_string
 };
+
+
+// There are also special macros for options and results but those already have an ergonomic API for chaining.
+
+let data = pike_opt!(id |> get_cached |> fetch_local |> fetch_remote);
+// same as get_cached(id).or_else(|| fetch_local(id)).or_else(|| fetch_remote(id));
+
+let result = pike_res!("http://rust-lang.org" |> download |> parse |> get_links);
+// same as download("http://rust-lang.org").map(parse).map(get_links);
 ```
 
 
