@@ -6,6 +6,24 @@ Pike is a macro collection to pipe your functions calls, like in functional lang
 
 The pipe operator |> allows you to establish "pipelines" of functions in a flexible manner.
 
+### TL;DR
+
+```rust
+// takes a string's length, doubles it and converts it back into a string
+let len = pike! {
+  "abcd"
+  |> str::len
+  |> (as u32)
+  |> (times(2))
+  |> &
+  |> u32::to_string
+};
+
+// same as
+
+let len = times("abcd".len() as u32, 2).to_string();
+```
+
 ```rust
 fn times(a: u32, b: u32) -> u32{
     a * b
@@ -54,16 +72,6 @@ let is_it = pike! {
   |> is_it
 };
 assert_eq!(is_it, true);
-
-// takes a string length, doubles it and converts it back into a string
-let len = pike! {
-  "abcd"
-  |> str::len
-  |> (as u32)
-  |> (times(2))
-  |> &
-  |> u32::to_string
-};
 
 
 // There are also special macros for options and results but those already have an ergonomic API for chaining.
